@@ -13,7 +13,10 @@
 # git checkout name_rama
 
 # descargar actualizacion de la rama principal a la rama personal de desarrollo
-# ingresamo a nuestra rama
+# ingresamos a nuestra rama
 # git checkout name_rama
 # hacemos el merge
 # git merge master
+
+# limpiar
+# clear
