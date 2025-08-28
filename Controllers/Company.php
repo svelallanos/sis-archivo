@@ -15,6 +15,7 @@ class Company extends Controllers
      */
     public function company()
     {
+       // Este pertenece a la empresa
         $data['page_id'] = 23;
         permissionInterface($data['page_id']);
         $data['page_title'] = "Gestión de Empresas";
