@@ -1,0 +1,420 @@
+let table;
+window.addEventListener("DOMContentLoaded", (e) => {
+    loadTable();
+    setTimeout(() => {
+        saveData();
+        loadDataUpdate();
+        updateDate();
+        loadReport();
+        confirmationDelete();
+        deleteData();
+    }, 1000);
+});
+window.addEventListener("click", (e) => {
+    loadDataUpdate();
+    confirmationDelete();
+    loadReport();
+});
+// Función que carga la tabla con los datos
+function loadTable() {
+    table = $("#table").DataTable({
+        aProcessing: true,
+        aServerSide: true,
+        ajax: {
+            url: "" + base_url + "/Company/getCompany",
+            dataSrc: "",
+        },
+        columns: [
+            { data: "cont" },
+            { data: "title" },
+            { data: "subtitle" },
+            { data: "description" },
+            { data: "mail" },
+            { data: "ruc" },
+            { data: "address" },
+            { data: "phone" },
+            { data: "status_badge" },
+            { data: "actions" },
+        ],
+        dom: "lBfrtip",
+        buttons: [
+            {
+                extend: "copyHtml5",
+                text: "<i class='fa fa-copy'></i> Copiar",
+                titleAttr: "Copiar",
+                className: "btn btn-secondary",
+            },
+            {
+                extend: "excelHtml5",
+                text: "<i class='fa fa-file-excel-o'></i> Excel",
+                title: "Reporte de Compañia en Excel",
+                className: "btn btn-success",
+            },
+            {
+                extend: "csvHtml5",
+                text: "<i class='fa fa-file-text'></i> CSV",
+                title: "Reporte de Compañia en CSV",
+                className: "btn btn-info",
+            },
+            {
+                extend: "pdfHtml5",
+                text: "<i class='fa fa-file-pdf-o'></i> PDF",
+                title: "Reporte de Compañia en PDF",
+                className: "btn btn-danger",
+                orientation: "landscape",
+                pageSize: "LEGAL",
+            },
+        ],
+        columnDefs: [
+            {
+                targets: [0],
+                visible: true,
+                searchable: false,
+            },
+            {
+                targets: [1],
+                className: "text-center",
+            },
+            {
+                targets: [2],
+                className: "text-center",
+            },
+            {
+                targets: [3],
+                searchable: false,
+                className: "text-center",
+            },
+        ],
+
+        responsive: "true",
+        processing: true,
+        destroy: true,
+        iDisplayLength: 10,
+        order: [[0, "asc"]],
+        language: {
+            url: base_url + "/Assets/js/libraries/Spanish-datatables.json",
+        },
+    });
+}
+// Función que guarda los datos en la base de datos
+function saveData() {
+    const formSave = document.getElementById("formSave");
+    formSave.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const tel = $("#txtPhone").val();
+        const regexPhone = /^[0-9]{9}$/;
+
+        if (!regexPhone.test(tel)) {
+            toastr.error("El teléfono debe ser solo números y tener formato válido para Perú (Ej: +51987654321 o 987654321)");
+            return; // detener envío
+        }
+        
+        const formData = new FormData(formSave);
+        const header = new Headers();
+        const config = {
+            method: "POST",
+            headers: header,
+            node: "no-cache",
+            cors: "cors",
+            body: formData,
+        };
+        const url = base_url + "/Company/setCompany";
+        fetch(url, config)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        "Error en la solicitud " +
+                        response.status +
+                        " - " +
+                        response.statusText
+                    );
+                }
+                return response.json();
+            })
+            .then((data) => {
+                toastr.options = {
+                    closeButton: true,
+                    onclick: null,
+                    showDuration: "300",
+                    hideDuration: "1000",
+                    timeOut: "5000",
+                    progressBar: true,
+                    onclick: null,
+                };
+                if (!data.status) {
+                    toastr[data.type](data.message, data.title);
+                    return false;
+                }
+                //limpiar el formulario
+                formSave.reset();
+                //ocultar el modal abierto
+                $("#modalSave").modal("hide");
+                //actualizar la tabla
+                table.ajax.reload(null, false);
+                toastr[data.type](data.message, data.title);
+                //recargar las funciones
+                setTimeout(() => {
+                    loadDataUpdate();
+                    confirmationDelete();
+                    loadReport();
+                }, 500);
+                return true;
+            })
+            .catch((error) => {
+                toastr.options = {
+                    closeButton: true,
+                    timeOut: 0,
+                    onclick: null,
+                };
+                toastr["error"](
+                    "Error en la solicitud al servidor: " +
+                    error.message +
+                    " - " +
+                    error.name,
+                    "Ocurrio un error inesperado"
+                );
+            });
+    });
+}
+
+
+//funcion que se encarga de mostrar el modal para actualizar los datos del usuario
+function loadDataUpdate() {
+    const btnUpdateItem = document.querySelectorAll(".update-item");
+    btnUpdateItem.forEach((item) => {
+        item.addEventListener("click", (e) => {
+            e.preventDefault();
+            //obtenemos los atributos del btn update y los almacenamos en una constante
+            const id = item.getAttribute("data-id");
+            const title = item.getAttribute("data-title");
+            const subtitle = item.getAttribute("data-subtitle");
+            const description = item.getAttribute("data-description");
+            const mail = item.getAttribute("data-mail");
+            const ruc = item.getAttribute("data-ruc");
+            const address = item.getAttribute("data-address");
+            const phone = item.getAttribute("data-phone");
+            const status = item.getAttribute("data-status");
+            //asignamos los valores obtenidos a los inputs del modal
+            document.getElementById("update_txtId").value = id;
+            document.getElementById("update_txtTitle").value = title;
+            document.getElementById("update_txtSubtitle").value = subtitle;
+            document.getElementById("update_txtDescription").value = description;
+            document.getElementById("update_txtMail").value = mail;
+            document.getElementById("update_txtRuc").value = ruc;
+            document.getElementById("update_txtAddress").value = address;
+            document.getElementById("update_txtPhone").value = phone;
+            document.getElementById("update_txtStatus").value = status;
+            //abrir el modal
+            $("#modalUpdate").modal("show");
+        });
+    });
+}
+//funcion que actualiza los datos dl usuarios enviandolos al servidor
+function updateDate() {
+    const formUpdate = document.getElementById("formUpdate");
+    formUpdate.addEventListener("submit", (e) => {
+        //enviamos el formulario por metodo PUT con todo archivo de imagen
+        e.preventDefault();
+        const formData = new FormData(formUpdate);
+        const header = new Headers();
+        const config = {
+            method: "POST",
+            headers: header,
+            node: "no-cache",
+            cors: "cors",
+            body: formData,
+        };
+        const url = base_url + "/Company/updateCompany";
+        fetch(url, config)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        "Error en la solicitud " +
+                        response.status +
+                        " - " +
+                        response.statusText
+                    );
+                }
+                return response.json();
+            })
+            .then((data) => {
+                toastr.options = {
+                    closeButton: true,
+                    onclick: null,
+                    showDuration: "300",
+                    hideDuration: "1000",
+                    timeOut: "5000",
+                    progressBar: true,
+                    onclick: null,
+                };
+                if (!data.status) {
+                    toastr[data.type](data.message, data.title);
+                    return false;
+                }
+                //limpiar el formulario
+                formUpdate.reset();
+                //ocultar el modal abierto
+                $("#modalUpdate").modal("hide");
+                //actualizar la tabla
+                table.ajax.reload(null, false);
+                toastr[data.type](data.message, data.title);
+                //recargar las funciones
+                setTimeout(() => {
+                    confirmationDelete();
+                    loadDataUpdate();
+                    loadReport();
+                }, 500);
+                return true;
+            })
+            .catch((error) => {
+                toastr.options = {
+                    closeButton: true,
+                    timeOut: 0,
+                    onclick: null,
+                };
+                toastr["error"](
+                    "Error en la solicitud al servidor: " +
+                    error.message +
+                    " - " +
+                    error.name,
+                    "Ocurrio un error inesperado"
+                );
+            });
+    });
+}
+//Funcion que carga los datos en el reporte del modal DEL REGISTRO seleccionado
+function loadReport() {
+    const btnReportItem = document.querySelectorAll(".report-item");
+    btnReportItem.forEach((item) => {
+        item.addEventListener("click", (e) => {
+            e.preventDefault();
+            ///obtenemos los atributos del btn update y los almacenamos en una constante
+            const id = item.getAttribute("data-id");
+            const title = item.getAttribute("data-title");
+            const subtitle = item.getAttribute("data-subtitle");
+            const description = item.getAttribute("data-description");
+            const mail = item.getAttribute("data-mail");
+            const ruc = item.getAttribute("data-ruc");
+            const address = item.getAttribute("data-adress");
+            const phone = item.getAttribute("data-phone");
+            const dataStatus = item.getAttribute("data-status");
+            const dataRegistrationDate = item.getAttribute("data-registrationdate");
+            const dataUpdateDate = item.getAttribute("data-updateDate");
+            //asignamos los valores obtenidos a los inputs del modal
+            document.getElementById("reportTitle").innerHTML = title;
+            document.getElementById("reportCode").innerHTML = "#" + id;
+            document.getElementById("reportTitle").innerHTML = title;
+            document.getElementById("reportSubtitle").innerHTML = subtitle;
+            document.getElementById("reportDescription").innerHTML = description;
+            document.getElementById("reportEmail").innerHTML = mail;
+            document.getElementById("reportRuc").innerHTML = ruc;
+            document.getElementById("reportAddress").innerHTML = address;
+            document.getElementById("reportPhone").innerHTML = phone;
+            document.getElementById("reportEstado").innerHTML = dataStatus;
+            document.getElementById("reportRegistrationDate").innerHTML =
+                dataRegistrationDate;
+            document.getElementById("reportUpdateDate").innerHTML = dataUpdateDate;
+            //abrir el modal
+            $("#modalReport").modal("show");
+        });
+    });
+}
+// Función que confirma la eliminación
+function confirmationDelete() {
+    const arrBtnDeleteItem = document.querySelectorAll(".delete-item");
+    arrBtnDeleteItem.forEach((item) => {
+        item.addEventListener("click", (e) => {
+            //obtenemos los atributos del btn delete y los almacenamos en una constante
+            const title = item.getAttribute("data-title");
+            const id = item.getAttribute("data-id");
+            //Preguntamos en el modal si esta seguro de eliminar elar el registro
+            document.getElementById("txtDelete").innerHTML =
+                "¿Está seguro de eliminar la empresa <strong>" + title + " </strong>?";
+            //Asiganamos los valores obtenidos y los enviamos a traves de un atributo dentro del btn de confirmacion de eliminar
+            const confirmDelete = document.getElementById("confirmDelete");
+            confirmDelete.setAttribute("data-id", id);
+            confirmDelete.setAttribute("data-title", name);
+            //abrimos el modal de confirmacion
+            $("#confirmModalDelete").modal("show");
+        });
+    });
+}
+// Función que se encarga de eliminar un registro
+function deleteData() {
+    const confirmDelete = document.getElementById("confirmDelete");
+    confirmDelete.addEventListener("click", (e) => {
+        e.preventDefault();
+        //recibimos las variables del atributo del btn de confirmacion de eliminar en sus constantes
+        const id = confirmDelete.getAttribute("data-id");
+        const title = confirmDelete.getAttribute("data-title");
+        const token = confirmDelete.getAttribute("data-token");
+        //creamos un array con los valores recuperados
+        const arrValues = {
+            id: id,
+            title: title,
+            token: token,
+        };
+        const header = { "Content-Type": "application/json" };
+        const config = {
+            method: "DELETE",
+            headers: header,
+            body: JSON.stringify(arrValues),
+        };
+        //La ruta donde se apunta del controlador
+        const url = base_url + "/Company/deleteCompany";
+        fetch(url, config)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        "Error en la solicitud" +
+                        response.status +
+                        " - " +
+                        response.statusText
+                    );
+                }
+                return response.json();
+            })
+            .then((data) => {
+                toastr.options = {
+                    closeButton: true,
+                    onclick: null,
+                    showDuration: "300",
+                    hideDuration: "1000",
+                    timeOut: "5000",
+                    progressBar: true,
+                    onclick: null,
+                };
+                if (!data.status) {
+                    toastr[data.type](data.message, data.title);
+                    return false;
+                }
+                //ocultar el modal abierto
+                $("#confirmModalDelete").modal("hide");
+                //actualizar la tabla
+                table.ajax.reload(null, false);
+                toastr[data.type](data.message, data.title);
+                ///recargar las funciones
+                setTimeout(() => {
+                    confirmationDelete();
+                    loadDataUpdate();
+                    loadReport();
+                }, 500);
+                return true;
+            })
+            .catch((error) => {
+                toastr.options = {
+                    closeButton: true,
+                    timeOut: 0,
+                    onclick: null,
+                };
+                toastr["error"](
+                    "Error en la solicitud al servidor: " +
+                    error.message +
+                    " - " +
+                    error.name,
+                    "Ocurrio un error inesperado"
+                );
+            });
+    });
+}
